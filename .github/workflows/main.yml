@@ -25,7 +25,6 @@ jobs:
         const path = require('path');
 
         const zonesPath = path.join(process.cwd(), "zones.json");
-        const gamesDir = path.join(process.cwd(), "games");
 
         if (!fs.existsSync(zonesPath)) {
           console.error("zones.json not found!");
@@ -35,18 +34,27 @@ jobs:
         const zones = JSON.parse(fs.readFileSync(zonesPath, "utf8"));
 
         zones.forEach(entry => {
-          const idFile = path.join(gamesDir, `${entry.id}.html`);
-          if (!fs.existsSync(idFile)) {
-            console.log(`Skipping ID ${entry.id}: no file found`);
+          if (!entry.url) {
+            console.log(`Skipping ID ${entry.id}: no url field`);
             return;
           }
 
-          // make a safe filename
-          const safeName = entry.name.replace(/[^a-zA-Z0-9._ -]/g, "").trim();
-          const newFile = path.join(gamesDir, `${safeName}.html`);
+          // Extract filename from URL
+          const urlParts = entry.url.split('/');
+          const fileName = urlParts[urlParts.length - 1]; // e.g., 612.html
+          const filePath = path.join(process.cwd(), fileName);
 
-          console.log(`Renaming: ${entry.id}.html -> ${safeName}.html`);
-          fs.renameSync(idFile, newFile);
+          if (!fs.existsSync(filePath)) {
+            console.log(`Skipping ${fileName}: file not found`);
+            return;
+          }
+
+          // sanitize name for filesystem
+          const safeName = entry.name.replace(/[^a-zA-Z0-9._ -]/g, "").trim();
+          const newFilePath = path.join(process.cwd(), `${safeName}.html`);
+
+          console.log(`Renaming: ${fileName} -> ${safeName}.html`);
+          fs.renameSync(filePath, newFilePath);
         });
 
         EOF
