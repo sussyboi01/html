@@ -1,0 +1,60 @@
+name: Rename Game Files From zones.json
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  rename:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+
+    - name: Install Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    - name: Run rename script
+      run: |
+        node << 'EOF'
+        const fs = require('fs');
+        const path = require('path');
+
+        const zonesPath = path.join(process.cwd(), "zones.json");
+        const gamesDir = path.join(process.cwd(), "games");
+
+        if (!fs.existsSync(zonesPath)) {
+          console.error("zones.json not found!");
+          process.exit(1);
+        }
+
+        const zones = JSON.parse(fs.readFileSync(zonesPath, "utf8"));
+
+        zones.forEach(entry => {
+          const idFile = path.join(gamesDir, `${entry.id}.html`);
+          if (!fs.existsSync(idFile)) {
+            console.log(`Skipping ID ${entry.id}: no file found`);
+            return;
+          }
+
+          // make a safe filename
+          const safeName = entry.name.replace(/[^a-zA-Z0-9._ -]/g, "").trim();
+          const newFile = path.join(gamesDir, `${safeName}.html`);
+
+          console.log(`Renaming: ${entry.id}.html -> ${safeName}.html`);
+          fs.renameSync(idFile, newFile);
+        });
+
+        EOF
+
+    - name: Commit and push changes
+      run: |
+        git config --global user.name "github-actions"
+        git config --global user.email "github-actions@github.com"
+        git add .
+        git commit -m "Auto-renamed game files from zones.json" || echo "No changes to commit"
+        git push
